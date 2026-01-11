@@ -1,62 +1,96 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import base64
+from ultralytics import YOLO
 import cv2
 import numpy as np
-from ultralytics import YOLO
-
+import base64
 
 app = FastAPI()
-model = YOLO('yolov8n.pt') 
 
+# --- 1. CORS SETTINGS (Crucial for Vercel Connection) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class ImagePayload(BaseModel):
-    image: str
+# --- 2. LOAD AI MODEL ---
+try:
+    model = YOLO('yolov8n.pt') 
+    print("✅ AI Model Loaded Successfully")
+except Exception as e:
+    print(f"❌ Error loading model: {e}")
+
+# --- 3. THREAT LOGIC (Customize this!) ---
 
 THREAT_MAP = {
-    "person": "SAFE",          
-    "cell phone": "CAUTION",   
-    "knife": "DANGER",         
-    "scissors": "DANGER",      
-    "cup": "SAFE",
-    "bottle": "SAFE"
+    "person": "SAFE",          # Humans are now SAFE (Screen stays Green)
+    "cell phone": "DANGER",    # Phones trigger RED ALERT (Easy to test)
+    "bottle": "CAUTION",       # Bottles trigger YELLOW ALERT
+    "cup": "CAUTION",
+    "knife": "DANGER",
+    "scissors": "DANGER",
+    "gun": "DANGER"
 }
 
 @app.post("/analyze")
-async def analyze_frame(payload: ImagePayload):
+async def analyze_frame(request: Request):
     try:
-        header, encoded = payload.image.split(",", 1)
-        data = base64.b64decode(encoded)
-        np_arr = np.frombuffer(data, np.uint8)
-        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        # A. Receive Data
+        data = await request.json()
+        image_data = data.get('image')
 
+        if not image_data:
+            return {"threat": "SAFE", "label": "NO DATA"}
+
+        # B. Decode Image (Base64 -> OpenCV)
+        encoded_data = image_data.split(',')[1]
+        nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        # C. Run YOLO AI
         results = model(frame, verbose=False)
         
         highest_threat = "SAFE"
         detected_label = "SCANNING..."
-        
+
+        # --- DEBUG PRINT: Shows exactly what YOLO sees in Render Logs ---
+        detections = [model.names[int(b.cls[0])] for r in results for b in r.boxes]
+        if len(detections) > 0:
+            print(f"👀 AI SEES: {detections}")  # Look for this in Render Logs!
+        # ---------------------------------------------------------------
+
+        # D. Check Threats
         for r in results:
             for box in r.boxes:
                 cls_id = int(box.cls[0])
-                class_name = model.names[cls_id]
-                threat = THREAT_MAP.get(class_name, "SAFE")
-
+                label = model.names[cls_id]
+                
+                # Check threat map
+                threat = THREAT_MAP.get(label, "SAFE")
+                
+                # Logic: DANGER > CAUTION > SAFE
                 if threat == "DANGER":
                     highest_threat = "DANGER"
-                    detected_label = class_name.upper()
+                    detected_label = label.upper()
+                    break # Stop looking, we found a danger
+                
                 elif threat == "CAUTION" and highest_threat != "DANGER":
                     highest_threat = "CAUTION"
-                    detected_label = class_name.upper()
+                    detected_label = label.upper()
+                
+                elif threat == "SAFE" and highest_threat == "SAFE":
+                    detected_label = label.upper()
 
         return {"threat": highest_threat, "label": detected_label}
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"❌ SERVER ERROR: {e}")
         return {"threat": "SAFE", "label": "ERROR"}
+
+# Needed for Render to start the app
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=10000)
