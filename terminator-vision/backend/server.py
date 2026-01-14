@@ -27,7 +27,7 @@ except Exception as e:
 
 THREAT_MAP = {
     "person": "SAFE",          # Humans are now SAFE (Screen stays Green)
-    "cell phone": "DANGER",    # Phones trigger RED ALERT (Easy to test)
+    "cell phone": "CAUTION",    # Phones trigger YELLOW ALERT (Easy to test)
     "bottle": "CAUTION",       # Bottles trigger YELLOW ALERT
     "cup": "CAUTION",
     "knife": "DANGER",
