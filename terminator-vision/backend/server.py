@@ -26,7 +26,7 @@ except Exception as e:
 # --- 3. THREAT LOGIC (Customize this!) ---
 
 THREAT_MAP = {
-    "person": "SAFE",          # Humans are now SAFE (Screen stays Green)
+    "person": "DANGER",          # Humans are now DANGER (Screen stays Red)
     "cell phone": "CAUTION",    # Phones trigger YELLOW ALERT (Easy to test)
     "bottle": "CAUTION",       # Bottles trigger YELLOW ALERT
     "cup": "CAUTION",

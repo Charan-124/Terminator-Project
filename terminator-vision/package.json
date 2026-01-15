@@ -21,6 +21,11 @@
     "postcss": "8.4.31",
     "resolve-url-loader>postcss": "8.4.31"
   },
+  "pnpm": {
+    "resolutions": {
+      "eslint-config-react-app": "7.0.1"
+    }
+  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

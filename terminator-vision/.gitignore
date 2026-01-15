@@ -21,3 +21,17 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Vercel
+.vercel/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+env/
+venv/
+
+# Optional: Large model files (comment out if you want to include)
+# backend/yolov8n.pt
+
